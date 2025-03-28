@@ -1,17 +1,32 @@
 from flask import Flask, request, render_template
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
 
 app = Flask(__name__)
 
+# Hugging Face se model aur tokenizer load karna
+model_name = "microsoft/DialoGPT-small"  # Hinglish ke liye ek aur model lena padega
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(model_name)
+
+# Function to generate response
 def get_response(user_input):
     user_input = user_input.lower()
+    
+    # Agar user ka input common hai, toh predefined response do
     if "hi" in user_input or "hello" in user_input:
-        return "Hello! How can I assist you today?"
-    elif "problem" in user_input or "issue" in user_input:
-        return "Please tell me more about your problem!"
+        return "Hello! Kaise ho?"
+    elif "kaisa hai" in user_input:
+        return "Sab badhiya! Tu bata?"
     elif "bye" in user_input:
-        return "Goodbye! Have a great day!"
-    else:
-        return "Sorry, I didn’t get that. Can you explain more?"
+        return "Bye bhai, fir milenge!"
+    
+    # Hugging Face ka model use karke response generate karna
+    input_ids = tokenizer.encode(user_input + tokenizer.eos_token, return_tensors="pt")
+    bot_output = model.generate(input_ids, max_length=1000, pad_token_id=tokenizer.eos_token_id)
+    response = tokenizer.decode(bot_output[:, input_ids.shape[-1]:][0], skip_special_tokens=True)
+    
+    return response
 
 @app.route("/", methods=["GET", "POST"])
 def home():
@@ -22,4 +37,4 @@ def home():
     return render_template("index.html")
 
 if __name__ == "__main__":
-    app.run()
+    app.run(host="0.0.0.0", port=5000)
